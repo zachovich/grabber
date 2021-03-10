@@ -37,11 +37,7 @@ func StartTestServer(t *testing.T, f func(url string), options ...HandlerOption)
 	}
 
 	s := httptest.NewServer(h)
-	defer func() {
-		h.(*handler).close()
-		s.Close()
-	}()
+	defer s.Close()
 
 	f(s.URL)
 }
-

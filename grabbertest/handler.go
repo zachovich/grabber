@@ -23,7 +23,6 @@ type handler struct {
 	attachmentFilename string
 	lastModified       time.Time
 	ttfb               time.Duration // time to first byte
-	rateLimiter        *time.Ticker
 }
 
 func NewHandler(options ...HandlerOption) (http.Handler, error) {
@@ -43,14 +42,8 @@ func NewHandler(options ...HandlerOption) (http.Handler, error) {
 	return h, nil
 }
 
-func (h *handler) close() {
-	if h.rateLimiter != nil {
-		h.rateLimiter.Stop()
-	}
-}
-
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// delay response
+	// enforce virtual ttfb
 	if h.ttfb > 0 {
 		time.Sleep(h.ttfb)
 	}
@@ -120,18 +113,9 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// send body
 	if r.Method == "GET" {
 		// use buffered io to reduce overhead on the reader
-		bw := bufio.NewWriterSize(w, 4096)
+		bw := bufio.NewWriterSize(w, 1 << 12)
 		for i := offset; !isRequestClosed(r) && i < h.contentLength; i++ {
 			bw.WriteByte(byte(i))
-
-			if h.rateLimiter != nil {
-				bw.Flush()
-				w.(http.Flusher).Flush() // force the server to send the data to the client
-				select {
-				case <-h.rateLimiter.C:
-				case <-r.Context().Done():
-				}
-			}
 		}
 
 		if !isRequestClosed(r) {

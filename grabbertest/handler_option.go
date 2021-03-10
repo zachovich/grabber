@@ -77,17 +77,6 @@ func TimeForFirstByte(d time.Duration) HandlerOption {
 	}
 }
 
-func RateLimiter(bps int) HandlerOption {
-	return func(h *handler) error {
-		if bps < 1 {
-			return errors.New("bytes per second must be greater than zero")
-		}
-
-		h.rateLimiter = time.NewTicker(time.Second / time.Duration(bps))
-		return nil
-	}
-}
-
 func AttachmentFilename(filename string) HandlerOption {
 	return func(h *handler) error {
 		h.attachmentFilename = filename
